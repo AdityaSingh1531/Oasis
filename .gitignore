@@ -1,6 +1,11 @@
-node_modules/
+node_modules
 .env
+client/.env
 *.json
 !package.json
 !package-lock.json
-client/
+oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json
+dist
+build
+client/dist
+.DS_Store

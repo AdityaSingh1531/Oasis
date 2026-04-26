@@ -32,7 +32,24 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function getCoordinatesFromAddress(address) {
+  if (!GOOGLE_MAPS_API_KEY) return null;
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address + ', Dehradun')}&key=${GOOGLE_MAPS_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.status === 'OK') {
+      return data.results[0].geometry.location;
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error.message);
+  }
+  return null;
+}
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -81,55 +98,62 @@ const verifyVolunteerToken = async (req, res, next) => {
 
 // ─── 1. POST /api/report ──────────────────────────────────────────────────────
 app.post('/api/report', async (req, res) => {
-  const { raw_text, priority: manualPriority, category: manualCategory } = req.body;
-  if (!raw_text) return res.status(400).json({ error: 'raw_text is required' });
-  if (typeof raw_text !== 'string' || raw_text.trim().length === 0)
-    return res.status(400).json({ error: 'raw_text must be a non-empty string' });
-  if (raw_text.length > 500)
-    return res.status(400).json({ error: 'raw_text exceeds the 500-character limit' });
+    const { raw_text, priority: manualPriority, category: manualCategory, user_location } = req.body;
+    if (!raw_text) return res.status(400).json({ error: 'raw_text is required' });
+    if (typeof raw_text !== 'string' || raw_text.trim().length === 0)
+      return res.status(400).json({ error: 'raw_text must be a non-empty string' });
+    if (raw_text.length > 500)
+      return res.status(400).json({ error: 'raw_text exceeds the 500-character limit' });
 
-  const safe_text = raw_text.trim().replace(/[`"\\]/g, '');
+    const safe_text = raw_text.trim().replace(/[`"\\]/g, '');
 
-  try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-    const prompt = `
-      You are an expert emergency response dispatcher operating in the Dehradun, India area.
-      The message below may be written in English, Hindi (Devanagari script), or Hinglish (a mix of Hindi and English).
-      Understand the message regardless of language or script, then extract the precise details into a JSON object.
-      Extract exactly these keys:
-      - priority: One of ["routine", "high", "critical"]
-      - category: One of ["medical", "food", "shelter", "logistics"]
-      - quantity: Number of people affected (integer, default to 1 if not specified)
-      - location: JSON object with "lat" and "lng" as numbers. Accurately guess the coordinates for the mentioned place in Dehradun.
-      - road_conditions: One of ["narrow", "flooded", "blocked", "clear"]
-      - vehicle_match: Best vehicle to dispatch. One of ["scooty", "truck", "4x4"]
-      Return ONLY the raw JSON object, no markdown, no backticks.
-      Message: "${safe_text}"
-    `;
-
-    const aiResult = await model.generateContent(prompt);
-    const responseText = aiResult.response.text().trim().replace(/```json|```/g, '');
-    let extractedData = {};
     try {
-      extractedData = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse Gemini response:', responseText);
-      return res.status(500).json({ error: 'AI failed to extract structured data' });
-    }
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const requestDoc = {
-      raw_text,
-      priority: manualPriority || extractedData.priority || 'high',
-      category: manualCategory || extractedData.category || 'logistics',
-      quantity: extractedData.quantity || 1,
-      location: extractedData.location || { lat: 30.3165, lng: 78.0322 },
-      road_conditions: extractedData.road_conditions || 'clear',
-      vehicle_match: extractedData.vehicle_match || '4x4',
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
+      const prompt = `
+        You are an expert emergency response dispatcher operating in the Dehradun, India area.
+        The message below may be written in English, Hindi (Devanagari script), or Hinglish (a mix of Hindi and English).
+        Understand the message regardless of language or script, then extract the precise details into a JSON object.
+        Extract exactly these keys:
+        - priority: One of ["routine", "high", "critical"]
+        - category: One of ["medical", "food", "shelter", "logistics"]
+        - quantity: Number of people affected (integer, default to 1 if not specified)
+        - location_name: The specific landmark, area, or road mentioned in Dehradun (string).
+        - road_conditions: One of ["narrow", "flooded", "blocked", "clear"]
+        - vehicle_match: Best vehicle to dispatch. One of ["scooty", "truck", "4x4"]
+        Return ONLY the raw JSON object, no markdown, no backticks.
+        Message: "${safe_text}"
+      `;
+
+      const aiResult = await model.generateContent(prompt);
+      const responseText = aiResult.response.text().trim().replace(/```json|```/g, '');
+      let extractedData = {};
+      try {
+        extractedData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse Gemini response:', responseText);
+        return res.status(500).json({ error: 'AI failed to extract structured data' });
+      }
+
+      let location = user_location || { lat: 30.3165, lng: 78.0322 };
+      if (!user_location && extractedData.location_name) {
+        const geoCoords = await getCoordinatesFromAddress(extractedData.location_name);
+        if (geoCoords) location = geoCoords;
+      }
+
+      const requestDoc = {
+        raw_text,
+        priority: manualPriority || extractedData.priority || 'high',
+        category: manualCategory || extractedData.category || 'logistics',
+        quantity: extractedData.quantity || 1,
+        location,
+        location_name: extractedData.location_name || 'Dehradun',
+        road_conditions: extractedData.road_conditions || 'clear',
+        vehicle_match: extractedData.vehicle_match || '4x4',
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
 
     if (db) {
       try {
@@ -143,8 +167,51 @@ app.post('/api/report', async (req, res) => {
     return res.status(201).json({ message: '[MOCK] Created (Firebase not configured)', data: { id: 'mock-id-'+Date.now(), ...requestDoc } });
 
   } catch (err) {
-    console.error('Error creating report:', err.message);
-    return res.status(500).json({ error: 'Failed to process report: ' + err.message });
+    console.error('Error with Gemini API:', err.message);
+    console.log('Falling back to default AI extraction so the app can continue working.');
+    
+    // Fallback if Gemini fails
+    const lowText = raw_text.toLowerCase();
+    
+    // Smart Priority Detection
+    let priority = 'high';
+    if (lowText.match(/critical|emergency|dying|blood|fire|trapped|stuck|breathing/)) {
+      priority = 'critical';
+    } else if (lowText.match(/food|water|blanket|clothes|routine|info/)) {
+      priority = 'routine';
+    }
+
+    // Smart Category Detection
+    let category = 'logistics';
+    if (lowText.match(/doctor|blood|injury|medicine|hospital|pain|sick/)) {
+      category = 'medical';
+    } else if (lowText.match(/food|water|hungry|ration|eat/)) {
+      category = 'food';
+    } else if (lowText.match(/stay|sleep|house|homeless|roof|tent/)) {
+      category = 'shelter';
+    }
+
+    const fallbackDoc = {
+      raw_text,
+      priority: manualPriority || priority,
+      category: manualCategory || category,
+      quantity: 1,
+      location: { lat: 30.3165, lng: 78.0322 }, // Default Dehradun
+      road_conditions: priority === 'critical' ? 'blocked' : 'clear',
+      vehicle_match: priority === 'critical' ? '4x4' : 'scooty',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    if (db) {
+      try {
+        const docRef = await db.collection('requests').add(fallbackDoc);
+        return res.status(201).json({ message: 'Help request created (AI Fallback)', data: { id: docRef.id, ...fallbackDoc } });
+      } catch (dbErr) {
+        return res.status(500).json({ error: 'Database error after AI fallback' });
+      }
+    }
+    return res.status(201).json({ message: '[MOCK] Created (AI Fallback & DB Offline)', data: { id: 'mock-id-'+Date.now(), ...fallbackDoc } });
   }
 });
 
@@ -190,8 +257,8 @@ app.get('/api/nearby-volunteers', async (req, res) => {
 
 // ─── 4. POST /api/volunteers/register ────────────────────────────────────────
 app.post('/api/volunteers/register', async (req, res) => {
-  const { name, phone } = req.body;
-  if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' });
+  const { name, phone, vehicle } = req.body;
+  if (!name || !phone || !vehicle) return res.status(400).json({ error: 'name, phone and vehicle are required' });
   if (typeof name !== 'string' || name.trim().length === 0) return res.status(400).json({ error: 'Invalid name' });
   if (typeof phone !== 'string' || phone.trim().length === 0) return res.status(400).json({ error: 'Invalid phone' });
   if (!db) return res.status(503).json({ error: 'Database not available' });
@@ -203,7 +270,7 @@ app.post('/api/volunteers/register', async (req, res) => {
     const sessionToken = crypto.randomUUID();
     const currentMonth = getCurrentMonth();
     const volunteerDoc = {
-      name: name.trim(), phone: phone.trim(), sessionToken,
+      name: name.trim(), phone: phone.trim(), vehicle: vehicle.toLowerCase(), sessionToken,
       totalPoints: 0, monthlyPoints: 0, lastResetMonth: currentMonth,
       status: 'active', createdAt: new Date().toISOString()
     };
@@ -278,7 +345,82 @@ app.post('/api/verify', verifyVolunteerToken, async (req, res) => {
   }
 });
 
-// ─── 7. GET /api/leaderboard ──────────────────────────────────────────────────
+// ─── 7. POST /api/volunteers/location ─────────────────────────────────────────
+app.post('/api/volunteers/location', verifyVolunteerToken, async (req, res) => {
+  const { location } = req.body;
+  if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+    return res.status(400).json({ error: 'Valid location {lat, lng} is required' });
+  }
+
+  try {
+    await req.volunteer.ref.update({
+      currentLocation: location,
+      lastSeen: new Date().toISOString()
+    });
+    res.status(200).json({ message: 'Location updated' });
+  } catch (err) {
+    console.error('Error updating location:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── 8. Safety Buddy (Dead-Man's Switch) ─────────────────────────────────────
+
+/**
+ * Activate Safety Buddy: Server starts a countdown.
+ * If no check-in by expiry, the buddy is alerted.
+ */
+app.post('/api/safety/activate', verifyVolunteerToken, async (req, res) => {
+  const { buddy_name, buddy_phone, duration_mins } = req.body;
+  if (!buddy_name || !buddy_phone || !duration_mins) {
+    return res.status(400).json({ error: 'Buddy info and duration are required' });
+  }
+
+  const expiryTime = new Date(Date.now() + duration_mins * 60000).toISOString();
+
+  try {
+    const safetyDoc = {
+      volunteerId: req.volunteer.id,
+      volunteerName: req.volunteer.name,
+      buddy_name,
+      buddy_phone,
+      expiryTime,
+      status: 'active',
+      lastLocation: req.volunteer.currentLocation || null,
+      path: req.volunteer.currentLocation ? [req.volunteer.currentLocation] : [],
+      activatedAt: new Date().toISOString()
+    };
+
+    // Store in a new 'safety_sessions' collection
+    const docRef = await db.collection('safety_sessions').add(safetyDoc);
+    res.status(201).json({ id: docRef.id, expiryTime, message: 'Safety Buddy Activated' });
+  } catch (err) {
+    console.error('Safety activation error:', err);
+    res.status(500).json({ error: 'Failed to activate safety protocol' });
+  }
+});
+
+app.post('/api/safety/checkin', verifyVolunteerToken, async (req, res) => {
+  const { session_id, status } = req.body; // status: 'safe' (deactivates) or 'extend'
+  if (!session_id) return res.status(400).json({ error: 'session_id required' });
+
+  try {
+    const docRef = db.collection('safety_sessions').doc(session_id);
+    const doc = await docRef.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Session not found' });
+
+    if (status === 'safe') {
+      await docRef.update({ status: 'resolved', deactivatedAt: new Date().toISOString() });
+      return res.status(200).json({ message: 'Protocol Deactivated. You are safe.' });
+    }
+    
+    res.status(400).json({ error: 'Invalid status update' });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ─── 9. GET /api/leaderboard ──────────────────────────────────────────────────
 app.get('/api/leaderboard', async (req, res) => {
   if (!db) return res.status(200).json({ leaderboard: [], month: getCurrentMonth() });
   try {
