@@ -9,17 +9,18 @@ const crypto = require('crypto');
 // ─── Firebase Admin SDK Initialization ───────────────────────────────────────
 let db = null;
 try {
-  if (process.env.FIREBASE_CONFIG || process.env.K_SERVICE) {
-    // We are in a Cloud environment (Firebase App Hosting / Cloud Run)
-    admin.initializeApp();
-    console.log("✅ Firebase Admin initialized via Application Default Credentials");
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // Use service account from environment variable
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Robust parsing for Vercel env vars (handles escaped newlines)
+    const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT.replace(/\\n/g, '\n');
+    const serviceAccount = JSON.parse(rawKey);
+    
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
     console.log("✅ Firebase initialized via Environment Variable");
+  } else if (process.env.FIREBASE_CONFIG || process.env.K_SERVICE) {
+    admin.initializeApp();
+    console.log("✅ Firebase Admin initialized via Application Default Credentials");
   } else {
     // Local development
     const SERVICE_ACCOUNT_PATH = './oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
@@ -33,7 +34,10 @@ try {
   db = admin.firestore();
 } catch (error) {
   console.error('❌ Firebase Admin init failed:', error.message);
-  console.warn('   Server will attempt to run in degraded mode.');
+  // Log a hint if it's a JSON error
+  if (error.message.includes('JSON')) {
+    console.error('   HINT: Your FIREBASE_SERVICE_ACCOUNT env var might be malformed.');
+  }
 }
 
 const app = express();
