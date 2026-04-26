@@ -13,6 +13,13 @@ try {
     // We are in a Cloud environment (Firebase App Hosting / Cloud Run)
     admin.initializeApp();
     console.log("✅ Firebase Admin initialized via Application Default Credentials");
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Use service account from environment variable
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("✅ Firebase initialized via Environment Variable");
   } else {
     // Local development
     const SERVICE_ACCOUNT_PATH = './oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
