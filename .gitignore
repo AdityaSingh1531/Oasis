@@ -4,6 +4,7 @@ client/.env
 *.json
 !package.json
 !package-lock.json
+!vercel.json
 oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json
 dist
 build
