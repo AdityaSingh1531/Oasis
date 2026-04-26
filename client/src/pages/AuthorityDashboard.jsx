@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Building2, MapPin, AlertCircle, FileText, Activity, Share2, Filter } from 'lucide-react';
+import { Shield, Building2, MapPin, AlertCircle, FileText, Activity, Share2, Filter, Trash2, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useMissions } from '../contexts/MissionContext';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
@@ -31,9 +32,59 @@ const mapOptions = {
 };
 
 const AuthorityDashboard = () => {
+  const navigate = useNavigate();
   const { missions } = useMissions();
+  const [volunteers, setVolunteers] = useState([]);
   const [activeTab, setActiveTab] = useState('medical');
   const [selectedMission, setSelectedMission] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 30.3165, lng: 78.0322 });
+
+  // Fetch volunteers for admin management
+  const fetchVolunteers = async () => {
+    try {
+      const res = await fetch('/api/volunteers/nearby?lat=30.3&lng=78.0&radius=5000');
+      const data = await res.json();
+      if (res.ok) setVolunteers(data.volunteers);
+    } catch (err) { console.error("Volunteer fetch failed:", err); }
+  };
+
+  React.useEffect(() => {
+    fetchVolunteers();
+    const interval = setInterval(fetchVolunteers, 10000); // Auto-refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const deleteMission = async (id) => {
+    if (!window.confirm("TERMINATE MISSION?")) return;
+    try {
+      const res = await fetch(`/api/missions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert("Mission Excised from Database.");
+        window.location.reload();
+      } else {
+        const errData = await res.json();
+        alert(`Deletion Failed: ${errData.error}`);
+      }
+    } catch (err) { 
+      console.error(err); 
+      alert("Network Error: Could not reach server.");
+    }
+  };
+
+  const deleteVolunteer = async (id, isAdmin) => {
+    if (isAdmin) {
+      alert("PROTECTION ERROR: CANNOT EXCISE AN ADMINISTRATOR.");
+      return;
+    }
+    if (!window.confirm("EXCISE VOLUNTEER?")) return;
+    try {
+      const res = await fetch(`/api/volunteers/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setVolunteers(v => v.filter(vol => vol.id !== id));
+        alert("Personnel Record Purged.");
+      }
+    } catch (err) { console.error(err); }
+  };
   
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -46,7 +97,8 @@ const AuthorityDashboard = () => {
     { id: 'medical', label: 'Hospitals' },
     { id: 'logistics', label: 'Logistics' },
     { id: 'shelter', label: 'Shelter' },
-    { id: 'food', label: 'Food Aid' }
+    { id: 'food', label: 'Food Aid' },
+    { id: 'volunteers', label: 'Personnel' }
   ];
 
   const getMarkerColor = (priority) => {
@@ -62,26 +114,44 @@ const AuthorityDashboard = () => {
       <div className="absolute inset-0 bg-grid pointer-events-none" />
       
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12 relative z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 glass-panel rounded-2xl flex items-center justify-center">
-            <Building2 strokeWidth={1.5} className="w-6 h-6 text-oasis-blue" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-[var(--text-secondary)] tracking-widest uppercase">Authority Command</p>
-            <h1 className="text-2xl lg:text-3xl font-black tracking-tighter uppercase">Institutional <span className="text-[var(--text-secondary)]">Portal</span></h1>
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={() => navigate('/')}
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all group"
+          >
+            <ChevronLeft className="w-5 h-5 text-white/40 group-hover:text-white" />
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 glass-panel rounded-2xl flex items-center justify-center">
+              <Building2 strokeWidth={1.5} className="w-6 h-6 text-oasis-blue" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-[var(--text-secondary)] tracking-widest uppercase">Authority Command</p>
+              <h1 className="text-2xl lg:text-3xl font-black tracking-tighter uppercase">Institutional <span className="text-[var(--text-secondary)]">Portal</span></h1>
+            </div>
           </div>
         </div>
         
-        <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-2xl glass-panel w-full lg:w-auto overflow-x-auto no-scrollbar">
-            {TABS.map(tab => (
-              <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`whitespace-nowrap px-6 py-3 text-[10px] font-black tracking-[0.2em] uppercase rounded-xl transition-all active:scale-95 cursor-pointer ${activeTab === tab.id ? 'bg-white/10 text-[var(--text-primary)] shadow-2xl scale-[1.02]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={() => window.location.reload()}
+            className="p-3 bg-oasis-blue/20 hover:bg-oasis-blue/40 rounded-2xl text-oasis-blue transition-all active:scale-95 flex items-center gap-2"
+          >
+            <Activity className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Refresh Intelligence</span>
+          </button>
+          
+          <div className="flex gap-2 p-1 bg-[var(--bg-secondary)] rounded-2xl glass-panel overflow-x-auto no-scrollbar">
+              {TABS.map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`whitespace-nowrap px-6 py-3 text-[10px] font-black tracking-[0.2em] uppercase rounded-xl transition-all active:scale-95 cursor-pointer ${activeTab === tab.id ? 'bg-white/10 text-[var(--text-primary)] shadow-2xl scale-[1.02]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+          </div>
         </div>
       </header>
 
@@ -142,12 +212,57 @@ const AuthorityDashboard = () => {
                                     {req.location?.lat.toFixed(3)}, {req.location?.lng.toFixed(3)}
                                 </span>
                             </div>
+                             <div className="flex items-center gap-3">
+                                <button 
+                                  onClick={() => deleteMission(req.id)}
+                                  className="p-2 hover:bg-oasis-red/10 rounded-lg text-oasis-red/40 hover:text-oasis-red transition-all"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setSelectedMission(req);
+                                    setMapCenter(req.location);
+                                  }}
+                                  className="text-[8px] font-black text-oasis-blue tracking-[0.2em] uppercase px-3 py-2 hover:bg-oasis-blue/10 rounded-lg transition-all active:scale-95 cursor-pointer"
+                                >
+                                    Track
+                                </button>
+                             </div>
+                        </div>
+                    </motion.div>
+                ))}
+
+                {activeTab === 'volunteers' && volunteers.map((vol, i) => (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        key={vol.id}
+                        className="glass-panel p-6 rounded-3xl group hover:border-oasis-red/30 transition-all flex flex-col"
+                    >
+                        <div className="flex justify-between items-start mb-6">
+                            <div className="p-2 bg-oasis-blue rounded-lg text-white">
+                                <Shield className="w-4 h-4" />
+                            </div>
                             <button 
-                              onClick={() => setSelectedMission(req)}
-                              className="text-[8px] font-black text-oasis-blue tracking-[0.2em] uppercase px-3 py-2 hover:bg-oasis-blue/10 rounded-lg transition-all active:scale-95 cursor-pointer"
+                                onClick={() => deleteVolunteer(vol.id, vol.isAdmin)}
+                                className={`p-2 rounded-lg transition-all ${vol.isAdmin ? 'opacity-20 cursor-not-allowed' : 'hover:bg-oasis-red/10 text-oasis-red/40 hover:text-oasis-red'}`}
                             >
-                                Track
+                                <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                        </div>
+                        <h4 className="text-sm font-bold text-white uppercase mb-2 tracking-tight">{vol.name}</h4>
+                        <p className="text-[10px] text-white/40 font-mono mb-4">{vol.phone}</p>
+                        <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-[8px] font-black text-oasis-blue uppercase tracking-widest">{vol.vehicle} Deployment</span>
+                            {vol.location && (
+                                <button 
+                                    onClick={() => setMapCenter(vol.location)}
+                                    className="text-[8px] font-black text-white/40 hover:text-white uppercase tracking-widest"
+                                >
+                                    Locate
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 ))}
@@ -159,11 +274,12 @@ const AuthorityDashboard = () => {
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={mapContainerStyle}
-            center={[30.3165, 78.0322]}
+            center={mapCenter}
             zoom={12}
             options={mapOptions}
           >
-            {missions.map(m => (
+            {/* Mission Markers */}
+            {activeTab !== 'volunteers' && missions.map(m => (
               <Marker 
                 key={m.id} 
                 position={m.location}
@@ -175,6 +291,28 @@ const AuthorityDashboard = () => {
                   strokeColor: 'white',
                   strokeWeight: 2,
                   scale: 6
+                }}
+              />
+            ))}
+
+            {/* Volunteer Markers (Only in Personnel Tab) */}
+            {activeTab === 'volunteers' && volunteers.map(v => (
+              <Marker 
+                key={v.id} 
+                position={v.location || { lat: 30.3, lng: 78.0 }}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  fillColor: v.isAdmin ? '#FF3B3B' : '#3B82F6',
+                  fillOpacity: 1,
+                  strokeColor: 'white',
+                  strokeWeight: 2,
+                  scale: 8
+                }}
+                label={{
+                  text: v.name.charAt(0),
+                  color: 'white',
+                  fontSize: '10px',
+                  fontWeight: 'bold'
                 }}
               />
             ))}

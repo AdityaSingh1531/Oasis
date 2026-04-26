@@ -520,6 +520,34 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
-app.listen(port, () => console.log(`Oasis API running on port ${port}`));
+// ─── 11. DELETE /api/missions/:id (Admin Only) ─────────────────────────────
+app.delete('/api/missions/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`[ADMIN] Attempting to delete mission: ${id}`);
+  try {
+    await db.collection('help_requests').doc(id).delete();
+    console.log(`[ADMIN] Successfully deleted mission: ${id}`);
+    res.status(200).json({ message: 'Mission Terminated.' });
+  } catch (err) {
+    console.error(`[ADMIN] ERROR deleting mission ${id}:`, err);
+    res.status(500).json({ error: 'Failed to delete mission' });
+  }
+});
+
+// ─── 12. DELETE /api/volunteers/:id (Admin Only) ───────────────────────────
+app.delete('/api/volunteers/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`[ADMIN] Attempting to delete volunteer: ${id}`);
+  try {
+    await db.collection('volunteers').doc(id).delete();
+    console.log(`[ADMIN] Successfully deleted volunteer: ${id}`);
+    res.status(200).json({ message: 'Volunteer Excised.' });
+  } catch (err) {
+    console.error(`[ADMIN] ERROR deleting volunteer ${id}:`, err);
+    res.status(500).json({ error: 'Failed to delete volunteer' });
+  }
+});
+
+app.listen(port, '127.0.0.1', () => console.log(`Oasis API running on http://127.0.0.1:${port}`));
 
 module.exports = app;

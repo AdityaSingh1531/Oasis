@@ -15,6 +15,8 @@ const VolunteerSignup = () => {
     startTime: '08:00',
     endTime: '18:00'
   });
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
 
   const EXPERTISE_OPTIONS = ['First Aid', 'Search & Rescue', 'Logistics', 'Psychological Support', 'Technical/IT'];
   const VEHICLE_OPTIONS = ['None (Foot)', 'Two-Wheeler (Scooty/Bike)', 'Four-Wheeler (Car/Jeep)', 'Heavy Vehicle (Truck/Boat)'];
@@ -37,9 +39,13 @@ const VolunteerSignup = () => {
       });
       const result = await response.json();
       if (response.ok) {
+        if (isAdminMode && adminPin !== "0000") {
+          alert("INVALID ACCESS CODE: SUDO REJECTED");
+          return;
+        }
         // Merge the API result (token, id) with local form data
-        login({ ...formData, ...result.volunteer });
-        navigate('/missions');
+        login({ ...formData, ...result.volunteer, isAdmin: isAdminMode });
+        navigate(isAdminMode ? '/authority' : '/missions');
       } else {
         alert(result.error || 'Registration failed');
       }
@@ -160,6 +166,34 @@ const VolunteerSignup = () => {
                 <ChevronDown strokeWidth={1.5} className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
               </div>
             </div>
+          </div>
+
+          {/* Admin Sudo Toggle */}
+          <div className="pt-4 border-t border-white/5">
+            <button 
+              type="button"
+              onClick={() => setIsAdminMode(!isAdminMode)}
+              className={`text-[10px] font-black tracking-[0.2em] uppercase px-4 py-2 rounded-lg transition-all ${isAdminMode ? 'bg-oasis-red text-white shadow-lg shadow-oasis-red/20' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              {isAdminMode ? 'Sudo Mode: ON' : 'Unlock Admin Node'}
+            </button>
+            
+            {isAdminMode && (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mt-4 relative"
+              >
+                <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-oasis-red" />
+                <input 
+                  type="password" 
+                  placeholder="ENTER_SUDO_PIN"
+                  className="w-full py-4 pl-12 pr-4 bg-oasis-red/5 rounded-xl outline-none font-mono text-sm border border-oasis-red/20 focus:border-oasis-red transition-colors text-oasis-red"
+                  value={adminPin}
+                  onChange={(e) => setAdminPin(e.target.value)}
+                />
+              </motion.div>
+            )}
           </div>
 
           <button 

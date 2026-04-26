@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Heart, ShieldAlert, Users } from 'lucide-react';
+import { AlertCircle, Heart, ShieldAlert, Users, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
@@ -71,19 +73,28 @@ const Hero = () => {
 
       {/* Floating Shortcuts Overlay */}
       <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center gap-4 w-fit h-fit pointer-events-auto">
-          <button 
-            onClick={(e) => { e.stopPropagation(); navigate('/authority'); }}
-            className="flex items-center gap-2 px-4 py-2 glass-panel border border-white/10 rounded-full transition-all group hover:bg-oasis-blue/20 hover:border-oasis-blue/40 active:scale-[0.98]"
-          >
-            <ShieldAlert strokeWidth={1.5} className="w-3.5 h-3.5 text-oasis-blue" />
-            <span className="text-[9px] font-black tracking-[0.25em] uppercase text-[var(--text-primary)]">Authority Node</span>
-          </button>
+          {user?.isAdmin && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); navigate('/authority'); }}
+              className="flex items-center gap-2 px-4 py-2 glass-panel border border-white/10 rounded-full transition-all group hover:bg-oasis-blue/20 hover:border-oasis-blue/40 active:scale-[0.98]"
+            >
+              <ShieldAlert strokeWidth={1.5} className="w-3.5 h-3.5 text-oasis-blue" />
+              <span className="text-[9px] font-black tracking-[0.25em] uppercase text-[var(--text-primary)]">Authority Node</span>
+            </button>
+          )}
           <button 
             onClick={(e) => { e.stopPropagation(); navigate('/missions'); }}
             className="flex items-center gap-2 px-4 py-2 glass-panel border border-white/10 rounded-full transition-all group hover:bg-oasis-green/20 hover:border-oasis-green/40 active:scale-[0.98]"
           >
              <Users strokeWidth={1.5} className="w-3.5 h-3.5 text-oasis-green" />
              <span className="text-[9px] font-black tracking-[0.25em] uppercase text-[var(--text-primary)]">Field Missions</span>
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); navigate('/leaderboard'); }}
+            className="flex items-center gap-2 px-4 py-2 glass-panel border border-white/10 rounded-full transition-all group hover:bg-oasis-red/20 hover:border-oasis-red/40 active:scale-[0.98]"
+          >
+             <TrendingUp strokeWidth={1.5} className="w-3.5 h-3.5 text-oasis-red" />
+             <span className="text-[9px] font-black tracking-[0.25em] uppercase text-[var(--text-primary)]">Vanguard Honors</span>
           </button>
       </div>
     </div>

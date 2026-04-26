@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, AlertTriangle, Shield, List, Search, MapPin, ChevronRight, Activity } from 'lucide-react';
+import { Map as MapIcon, AlertTriangle, Shield, List, Search, MapPin, ChevronRight, Activity, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMissions } from '../contexts/MissionContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -103,13 +103,21 @@ const MissionControl = () => {
       {/* Sidebar */}
       <aside className="w-80 border-r border-white/5 bg-white/[0.02] flex flex-col z-20">
         <div className="p-6 border-b border-white/5">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-oasis-blue/20 flex items-center justify-center">
-              <Shield strokeWidth={1.5} className="w-5 h-5 text-oasis-blue" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-white/30 tracking-widest uppercase">Operator</p>
-              <h2 className="text-sm font-bold text-white uppercase">{user?.name || "GUEST"}</h2>
+          <div className="flex items-center gap-4 mb-6">
+            <button 
+              onClick={() => navigate('/')}
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
+            >
+              <ChevronLeft className="w-5 h-5 text-white/40 group-hover:text-white" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-oasis-blue/20 flex items-center justify-center">
+                <Shield strokeWidth={1.5} className="w-5 h-5 text-oasis-blue" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-white/30 tracking-widest uppercase">Operator</p>
+                <h2 className="text-sm font-bold text-white uppercase">{user?.name || "GUEST"}</h2>
+              </div>
             </div>
           </div>
           

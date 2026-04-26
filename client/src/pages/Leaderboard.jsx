@@ -57,7 +57,7 @@ const Leaderboard = () => {
             </div>
             <div>
               <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Oasis Vanguard</h1>
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Operational Honors • {data.month || 'Current Cycle'}</p>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Operational Honors • 2026-27 Cycle</p>
             </div>
           </div>
         </header>
