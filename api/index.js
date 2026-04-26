@@ -33,7 +33,7 @@ try {
     console.log("✅ Firebase Admin initialized via Application Default Credentials");
   } else {
     // Local development
-    const SERVICE_ACCOUNT_PATH = './oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
+    const SERVICE_ACCOUNT_PATH = '../oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
     const serviceAccount = require(SERVICE_ACCOUNT_PATH);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),

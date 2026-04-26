@@ -4,9 +4,9 @@
   "description": "Oasis API endpoints using Firebase and Gemini",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node api/index.js",
     "build": "npm --prefix client install && npm --prefix client run build",
-    "dev:server": "node server.js",
+    "dev:server": "node api/index.js",
     "dev:client": "npm --prefix client run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
   },
