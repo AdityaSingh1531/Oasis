@@ -10,9 +10,12 @@ const crypto = require('crypto');
 let db = null;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.log("🛠️ Diagnostic: FIREBASE_SERVICE_ACCOUNT found. Length:", process.env.FIREBASE_SERVICE_ACCOUNT.length);
     // Robust parsing for Vercel env vars (handles escaped newlines)
     const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT.replace(/\\n/g, '\n');
     const serviceAccount = JSON.parse(rawKey);
+    
+    console.log("🛠️ Diagnostic: Parsed JSON keys:", Object.keys(serviceAccount));
     
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
@@ -34,10 +37,7 @@ try {
   db = admin.firestore();
 } catch (error) {
   console.error('❌ Firebase Admin init failed:', error.message);
-  // Log a hint if it's a JSON error
-  if (error.message.includes('JSON')) {
-    console.error('   HINT: Your FIREBASE_SERVICE_ACCOUNT env var might be malformed.');
-  }
+  console.error('   Stack Trace:', error.stack);
 }
 
 const app = express();
