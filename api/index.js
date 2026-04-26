@@ -11,10 +11,17 @@ let db = null;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.log("🛠️ Diagnostic: FIREBASE_SERVICE_ACCOUNT found. Length:", process.env.FIREBASE_SERVICE_ACCOUNT.length);
-    // Robust parsing for Vercel env vars (handles escaped newlines)
-    const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT.replace(/\\n/g, '\n');
-    const serviceAccount = JSON.parse(rawKey);
     
+    // SANITIZATION LAYER: Remove invisible control characters that crash JSON.parse
+    let sanitizedKey = process.env.FIREBASE_SERVICE_ACCOUNT
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Remove all non-printable control characters
+      .replace(/\\n/g, "\n"); // Restore proper newlines
+    
+    // Ensure it starts and ends with braces
+    if (!sanitizedKey.startsWith("{")) sanitizedKey = "{" + sanitizedKey;
+    if (!sanitizedKey.endsWith("}")) sanitizedKey = sanitizedKey + "}";
+
+    const serviceAccount = JSON.parse(sanitizedKey);
     console.log("🛠️ Diagnostic: Parsed JSON keys:", Object.keys(serviceAccount));
     
     admin.initializeApp({
