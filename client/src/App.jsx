@@ -11,6 +11,7 @@ import VolunteerSignup from './pages/VolunteerSignup';
 import MissionControl from './pages/MissionControl';
 import ResponseView from './pages/ResponseView';
 import AuthorityDashboard from './pages/AuthorityDashboard';
+import Leaderboard from './pages/Leaderboard';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
                 <Route path="/missions" element={<MissionControl />} />
                 <Route path="/response/:id" element={<ResponseView />} />
                 <Route path="/authority" element={<AuthorityDashboard />} />
+                <Route path="/leaderboard" element={<Leaderboard />} />
               </Routes>
             </div>
           </MissionProvider>

@@ -7,22 +7,26 @@ const path = require('path');
 const crypto = require('crypto');
 
 // ─── Firebase Admin SDK Initialization ───────────────────────────────────────
-// Loads the service account JSON directly from the project root.
-// Judges / teammates: just place the JSON file here and run `npm start`.
-const SERVICE_ACCOUNT_PATH = './oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
 let db = null;
 try {
-  const serviceAccount = require(SERVICE_ACCOUNT_PATH);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
+  if (process.env.FIREBASE_CONFIG || process.env.K_SERVICE) {
+    // We are in a Cloud environment (Firebase App Hosting / Cloud Run)
+    admin.initializeApp();
+    console.log("✅ Firebase Admin initialized via Application Default Credentials");
+  } else {
+    // Local development
+    const SERVICE_ACCOUNT_PATH = './oasisvelvet-b23-12-firebase-adminsdk-fbsvc-7639a836fb.json';
+    const serviceAccount = require(SERVICE_ACCOUNT_PATH);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id,
+    });
+    console.log(`✅ Firebase Admin initialized locally — project: ${serviceAccount.project_id}`);
+  }
   db = admin.firestore();
-  console.log(`✅ Firebase Admin initialized — project: ${serviceAccount.project_id}`);
 } catch (error) {
   console.error('❌ Firebase Admin init failed:', error.message);
-  console.warn('   Ensure the service account JSON is at:', SERVICE_ACCOUNT_PATH);
-  console.warn('   Server will run in mock/degraded mode.');
+  console.warn('   Server will attempt to run in degraded mode.');
 }
 
 const app = express();
@@ -112,18 +116,21 @@ app.post('/api/report', async (req, res) => {
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const prompt = `
-        You are an expert emergency response dispatcher operating in the Dehradun, India area.
-        The message below may be written in English, Hindi (Devanagari script), or Hinglish (a mix of Hindi and English).
-        Understand the message regardless of language or script, then extract the precise details into a JSON object.
-        Extract exactly these keys:
-        - priority: One of ["routine", "high", "critical"]
-        - category: One of ["medical", "food", "shelter", "logistics"]
-        - quantity: Number of people affected (integer, default to 1 if not specified)
-        - location_name: The specific landmark, area, or road mentioned in Dehradun (string).
-        - road_conditions: One of ["narrow", "flooded", "blocked", "clear"]
-        - vehicle_match: Best vehicle to dispatch. One of ["scooty", "truck", "4x4"]
-        Return ONLY the raw JSON object, no markdown, no backticks.
-        Message: "${safe_text}"
+        You are the Oasis Tactical Emergency AI. 
+        Analyze this report (English/Hindi/Hinglish): "${safe_text}"
+        
+        CRITICAL: 
+        1. Determine if this is a GENUINE emergency or crisis-related request. 
+        2. If it is chatter, a test message, or unrelated (e.g., "I like butter", "Hello world"), set is_emergency to false.
+        3. If it is a real request, identify the EXACT location (landmarks/house numbers).
+
+        Return ONLY a JSON object:
+        - is_emergency: boolean
+        - priority: ["routine", "high", "critical"]
+        - category: ["medical", "food", "shelter", "logistics"]
+        - quantity: integer
+        - location_name: Precise address/landmark (string).
+        - summary: A tactical 5-word summary.
       `;
 
       const aiResult = await model.generateContent(prompt);
@@ -131,6 +138,9 @@ app.post('/api/report', async (req, res) => {
       let extractedData = {};
       try {
         extractedData = JSON.parse(responseText);
+        if (extractedData.is_emergency === false) {
+          return res.status(400).json({ error: 'Chatter detected. Only emergency reports are permitted.' });
+        }
       } catch (parseError) {
         console.error('Failed to parse Gemini response:', responseText);
         return res.status(500).json({ error: 'AI failed to extract structured data' });
@@ -310,6 +320,42 @@ app.post('/api/volunteers/login', async (req, res) => {
   }
 });
 
+// ─── 1.5 POST /api/report/voice (Audio to Data) ──────────────────────────────
+app.post('/api/report/voice', async (req, res) => {
+  const { audio } = req.body; // base64 string
+  if (!audio) return res.status(400).json({ error: 'Audio data is required' });
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: audio,
+          mimeType: "audio/webm"
+        }
+      },
+      "Transcribe this audio. If it is an emergency, extract: is_emergency (bool), priority (routine/high/critical), category (medical/food/shelter/logistics), location_name (exact address/landmark). Return ONLY JSON."
+    ]);
+
+    const responseText = result.response.text().trim().replace(/```json|```/g, '');
+    let extractedData = JSON.parse(responseText);
+
+    if (extractedData.is_emergency === false) {
+      return res.status(400).json({ error: 'No emergency detected in audio.' });
+    }
+
+    res.status(200).json({ 
+      text: extractedData.location_name ? `Emergency: ${extractedData.category} at ${extractedData.location_name}` : "Emergency detected.",
+      extracted: extractedData 
+    });
+  } catch (err) {
+    console.error('Voice processing error:', err);
+    res.status(500).json({ error: 'Voice processing failed' });
+  }
+});
+
 // ─── 6. POST /api/verify (awards points) ─────────────────────────────────────
 app.post('/api/verify', verifyVolunteerToken, async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Database not initialized' });
@@ -420,7 +466,35 @@ app.post('/api/safety/checkin', verifyVolunteerToken, async (req, res) => {
   }
 });
 
-// ─── 9. GET /api/leaderboard ──────────────────────────────────────────────────
+// ─── 9. GET /api/volunteers/nearby ──────────────────────────────────────────
+/**
+ * Find volunteers within a 2km radius of a specific location.
+ */
+app.get('/api/volunteers/nearby', async (req, res) => {
+  const { lat, lng, radius = 2 } = req.query;
+  if (!lat || !lng) return res.status(400).json({ error: 'lat and lng are required' });
+
+  try {
+    const snap = await db.collection('volunteers').get();
+    const nearby = snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(v => {
+        if (!v.currentLocation) return false;
+        const dist = getDistanceFromLatLonInKm(
+          parseFloat(lat), parseFloat(lng),
+          v.currentLocation.lat, v.currentLocation.lng
+        );
+        return dist <= parseFloat(radius);
+      });
+
+    res.status(200).json({ volunteers: nearby });
+  } catch (err) {
+    console.error('Proximity search error:', err);
+    res.status(500).json({ error: 'Proximity search failed' });
+  }
+});
+
+// ─── 10. GET /api/leaderboard ──────────────────────────────────────────────────
 app.get('/api/leaderboard', async (req, res) => {
   if (!db) return res.status(200).json({ leaderboard: [], month: getCurrentMonth() });
   try {

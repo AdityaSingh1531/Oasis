@@ -12,8 +12,12 @@ const mapContainerStyle = {
 };
 
 const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: false,
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  gestureHandling: "greedy",
   styles: [
     { elementType: "geometry", stylers: [{ color: "#212121" }] },
     { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -41,6 +45,8 @@ const ResponseView = () => {
   const [response, setResponse] = useState(null);
   const [distance, setDistance] = useState('');
   const [duration, setDuration] = useState('');
+  const [mapCenter, setMapCenter] = useState({ lat: 30.3165, lng: 78.0322 });
+  const [hasCentered, setHasCentered] = useState(false);
 
   // Safety Buddy State
   const [safetySession, setSafetySession] = useState(null);
@@ -57,13 +63,20 @@ const ResponseView = () => {
   useEffect(() => {
     if (navigator.geolocation) {
       const wid = navigator.geolocation.watchPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(newLoc);
+          if (!hasCentered) {
+            setMapCenter(newLoc);
+            setHasCentered(true);
+          }
+        },
         (err) => console.error(err),
         { enableHighAccuracy: true }
       );
       return () => navigator.geolocation.clearWatch(wid);
     }
-  }, []);
+  }, [hasCentered]);
 
   // Timer logic for Dead-Man's Switch
   useEffect(() => {
@@ -213,7 +226,7 @@ const ResponseView = () => {
              {isLoaded ? (
                <GoogleMap
                  mapContainerStyle={mapContainerStyle}
-                 center={userLocation || { lat: 30.3165, lng: 78.0322 }}
+                 center={mapCenter}
                  zoom={13}
                  options={mapOptions}
                >

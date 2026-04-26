@@ -12,8 +12,12 @@ const mapContainerStyle = {
 };
 
 const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: false,
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  gestureHandling: "greedy",
   styles: [
     { elementType: "geometry", stylers: [{ color: "#212121" }] },
     { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -35,6 +39,9 @@ const MissionControl = () => {
   const [filter, setFilter] = useState('All');
   const [userLocation, setUserLocation] = useState(null);
   const [selectedMission, setSelectedMission] = useState(null);
+  const [nearbyVolunteers, setNearbyVolunteers] = useState([]);
+  const [mapCenter, setMapCenter] = useState({ lat: 30.3165, lng: 78.0322 });
+  const [hasCentered, setHasCentered] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -45,15 +52,38 @@ const MissionControl = () => {
   React.useEffect(() => {
     if (navigator.geolocation) {
       const id = navigator.geolocation.watchPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (pos) => {
+          const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(newLoc);
+          if (!hasCentered) {
+            setMapCenter(newLoc);
+            setHasCentered(true);
+          }
+        },
         (err) => console.error(err),
         { enableHighAccuracy: true }
       );
       return () => navigator.geolocation.clearWatch(id);
     }
-  }, []);
+  }, [hasCentered]);
+
+  const fetchNearbyVolunteers = async (loc) => {
+    try {
+      const res = await fetch(`/api/volunteers/nearby?lat=${loc.lat}&lng=${loc.lng}&radius=2`);
+      const data = await res.json();
+      if (res.ok) setNearbyVolunteers(data.volunteers.filter(v => v.id !== user?.id));
+    } catch (e) {
+      console.error("Proximity fetch error:", e);
+    }
+  };
 
   const filteredMissions = filter === 'All' ? missions : missions.filter(m => m.priority === filter.toLowerCase());
+
+  const handleSelectMission = (m) => {
+    setSelectedMission(m);
+    setMapCenter(m.location);
+    fetchNearbyVolunteers(m.location);
+  };
 
   const handleAccept = (id) => {
     acceptMission(id);
@@ -104,8 +134,8 @@ const MissionControl = () => {
             <motion.div 
               layoutId={m.id}
               key={m.id}
-              onClick={() => handleAccept(m.id)}
-              className="p-5 glass-panel rounded-2xl hover:bg-white/[0.06] transition-colors cursor-pointer group relative overflow-hidden"
+              onClick={() => handleSelectMission(m)}
+              className={`p-5 glass-panel rounded-2xl hover:bg-white/[0.06] transition-colors cursor-pointer group relative overflow-hidden ${selectedMission?.id === m.id ? 'border-oasis-blue/50 bg-oasis-blue/5' : ''}`}
             >
               <div className="flex justify-between items-start mb-3">
                 <span className={`px-2 py-0.5 rounded text-[8px] font-black tracking-widest uppercase ${m.priority === 'critical' ? 'bg-oasis-red text-white' : 'bg-orange-500 text-white'}`}>
@@ -132,7 +162,7 @@ const MissionControl = () => {
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
-              center={userLocation || { lat: 30.3165, lng: 78.0322 }}
+              center={mapCenter}
               zoom={14}
               options={mapOptions}
             >
@@ -141,7 +171,7 @@ const MissionControl = () => {
                 <Marker 
                   position={userLocation} 
                   icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
+                    path: 0, // Circle
                     fillColor: '#3B82F6',
                     fillOpacity: 1,
                     strokeColor: 'white',
@@ -151,41 +181,58 @@ const MissionControl = () => {
                 />
               )}
 
-              {filteredMissions.map(m => (
+              {/* Nearby Volunteers */}
+              {nearbyVolunteers.map(v => (
                 <Marker 
-                  key={m.id} 
-                  position={m.location}
-                  onClick={() => setSelectedMission(m)}
+                  key={v.id}
+                  position={v.currentLocation}
                   icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: getMarkerColor(m.priority),
-                    fillOpacity: 1,
-                    strokeColor: 'white',
-                    strokeWeight: 2,
-                    scale: 7
+                    path: 0,
+                    fillColor: '#00D1FF',
+                    fillOpacity: 0.6,
+                    strokeColor: '#00D1FF',
+                    strokeWeight: 1,
+                    scale: 5
                   }}
                 />
               ))}
 
+              {/* Emergency Markers */}
+              {filteredMissions.map(m => (
+                <Marker 
+                  key={m.id}
+                  position={m.location}
+                  onClick={() => handleSelectMission(m)}
+                />
+              ))}
+
               {selectedMission && (
-                <InfoWindow
-                  position={selectedMission.location}
+                <InfoWindow 
+                  position={selectedMission.location} 
                   onCloseClick={() => setSelectedMission(null)}
                 >
-                  <div className="p-2 min-w-[200px] bg-[#1a1a1a] text-white rounded-lg">
-                    <h4 className={`text-xs font-black uppercase mb-1 ${selectedMission.priority === 'critical' ? 'text-oasis-red' : 'text-orange-500'}`}>
-                      {selectedMission.priority} Alert
-                    </h4>
-                    <p className="text-[10px] text-white/80 leading-relaxed mb-3 italic">"{selectedMission.raw_text}"</p>
+                  <div className="p-3 min-w-[200px]">
+                    <p className="text-[8px] font-black text-oasis-blue uppercase tracking-widest mb-1">Target Intel</p>
+                    <h4 className="text-black font-black uppercase text-sm mb-2">{selectedMission.category}</h4>
+                    <p className="text-[10px] text-gray-600 mb-4">{selectedMission.location_name}</p>
+                    
+                    <div className="bg-oasis-blue/10 p-2 rounded-lg mb-4">
+                      <p className="text-[10px] font-bold text-oasis-blue flex items-center gap-2">
+                        <Shield className="w-3 h-3" />
+                        {nearbyVolunteers.length} Volunteers Nearby (2km)
+                      </p>
+                    </div>
+
                     <button 
                       onClick={() => handleAccept(selectedMission.id)}
-                      className="w-full py-2 bg-oasis-blue text-white text-[8px] font-black uppercase rounded-lg shadow-lg hover:bg-oasis-blue/80 transition-colors"
+                      className="w-full py-3 bg-oasis-blue text-white text-[10px] font-black uppercase rounded-xl hover:bg-oasis-blue/90 transition-all"
                     >
-                      Respond Now
+                      Accept Mission
                     </button>
                   </div>
                 </InfoWindow>
               )}
+
             </GoogleMap>
           ) : (
             <div className="w-full h-full flex items-center justify-center">

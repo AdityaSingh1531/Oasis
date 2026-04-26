@@ -10,8 +10,12 @@ const mapContainerStyle = {
 };
 
 const mapOptions = {
-  disableDefaultUI: true,
-  zoomControl: false,
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  gestureHandling: "greedy",
   styles: [
     { elementType: "geometry", stylers: [{ color: "#212121" }] },
     { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
