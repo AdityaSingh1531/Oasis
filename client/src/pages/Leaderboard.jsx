@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Medal, Award, Star, TrendingUp, Users } from 'lucide-react';
+import { Trophy, Medal, Award, Star, TrendingUp, Users, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Leaderboard = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState({ leaderboard: [], month: '' });
   const [loading, setLoading] = useState(true);
 
@@ -42,8 +44,14 @@ const Leaderboard = () => {
   return (
     <div className="min-h-screen bg-oasis-dark p-6 lg:p-12">
       <div className="max-w-4xl mx-auto">
-        <header className="mb-12">
-          <div className="flex items-center gap-4 mb-4">
+        <header className="mb-12 flex items-center gap-8">
+          <button 
+            onClick={() => navigate('/')}
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all group"
+          >
+            <ChevronLeft className="w-5 h-5 text-white/40 group-hover:text-white" />
+          </button>
+          <div className="flex items-center gap-4">
             <div className="p-3 bg-oasis-blue/20 rounded-2xl">
               <Trophy className="w-8 h-8 text-oasis-blue" />
             </div>

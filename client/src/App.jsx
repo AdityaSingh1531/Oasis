@@ -12,8 +12,15 @@ import MissionControl from './pages/MissionControl';
 import ResponseView from './pages/ResponseView';
 import AuthorityDashboard from './pages/AuthorityDashboard';
 import Leaderboard from './pages/Leaderboard';
+import SplashScreen from './components/SplashScreen';
 
 function App() {
+  const [showSplash, setShowSplash] = React.useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
   return (
     <Router>
       <ThemeProvider>

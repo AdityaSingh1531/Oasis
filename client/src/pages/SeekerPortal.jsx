@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Send, ArrowLeft, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Mic, Send, ArrowLeft, Loader2, ShieldCheck, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const SeekerPortal = () => {
@@ -100,13 +100,18 @@ const SeekerPortal = () => {
 
   return (
     <div className="min-h-screen bg-oasis-dark relative flex flex-col items-center justify-center p-6 overflow-hidden">
-      <button 
-        onClick={() => navigate('/')}
-        className="absolute top-12 left-8 text-white/40 hover:text-white flex items-center gap-2 transition-colors group active:scale-95 cursor-pointer"
-      >
-        <ArrowLeft strokeWidth={1.5} className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-xs font-bold tracking-widest uppercase">ABORT SESSION</span>
-      </button>
+      <header className="absolute top-12 left-8 flex items-center gap-6">
+        <button 
+          onClick={() => navigate('/')}
+          className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all group"
+        >
+          <ChevronLeft className="w-5 h-5 text-white/40 group-hover:text-white" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Seeker Portal</h1>
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Emergency Intelligence Network</p>
+        </div>
+      </header>
 
       <AnimatePresence mode="wait">
         {!isAnalyzing && !triageResult && (

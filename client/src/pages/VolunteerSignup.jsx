@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Shield, Truck, Clock, ArrowRight, ChevronDown } from 'lucide-react';
+import { User, Shield, Truck, Clock, ArrowRight, ChevronDown, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -51,6 +51,12 @@ const VolunteerSignup = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4 lg:p-12 relative overflow-hidden">
+      <button 
+        onClick={() => navigate('/')}
+        className="absolute top-8 left-8 z-50 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all group"
+      >
+        <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" />
+      </button>
       <div className="absolute inset-0 bg-grid pointer-events-none" />
       
       <motion.div 
