@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Send, ArrowLeft, Loader2, ShieldCheck, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 
 const SeekerPortal = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -17,7 +18,7 @@ const SeekerPortal = () => {
       }
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => resolve(null),
+        () => resolve({ lat: 30.3165, lng: 78.0322 }), // Default: Dehradun
         { timeout: 5000 }
       );
     });
@@ -31,7 +32,7 @@ const SeekerPortal = () => {
     const user_location = await getCurrentLocation();
 
     try {
-      const response = await fetch('/api/report', {
+      const response = await fetch(`${API_BASE_URL}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -69,7 +70,7 @@ const SeekerPortal = () => {
       const user_location = await getCurrentLocation();
       
       try {
-        const response = await fetch('/api/report', {
+        const response = await fetch(`${API_BASE_URL}/api/report`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

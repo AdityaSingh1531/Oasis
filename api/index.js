@@ -50,9 +50,11 @@ try {
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -164,7 +166,7 @@ app.post('/api/report', async (req, res) => {
         return res.status(500).json({ error: 'AI failed to extract structured data' });
       }
 
-      let location = user_location || { lat: 30.3165, lng: 78.0322 };
+      let location = user_location || { lat: 30.3165, lng: 78.0322 }; // Default: Dehradun
       if (!user_location && extractedData.location_name) {
         const geoCoords = await getCoordinatesFromAddress(extractedData.location_name);
         if (geoCoords) location = geoCoords;
@@ -379,7 +381,7 @@ app.post('/api/verify', verifyVolunteerToken, async (req, res) => {
   if (!db) return res.status(500).json({ error: 'Database not initialized' });
   const { request_id, otp } = req.body;
   if (!request_id || !otp) return res.status(400).json({ error: 'request_id and otp are required' });
-  if (otp !== '1234') return res.status(401).json({ error: 'Invalid OTP' });
+  if (otp != '1234') return res.status(401).json({ error: 'Invalid OTP' });
 
   try {
     const docRef = db.collection('requests').doc(request_id);
@@ -533,10 +535,7 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// ─── Catch-all for React Router ────────────────────────────────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
-});
+// Standalone API - no catch-all for React Router needed here
 
 // ─── 11. DELETE /api/missions/:id (Admin Only) ─────────────────────────────
 app.delete('/api/missions/:id', async (req, res) => {
@@ -566,6 +565,6 @@ app.delete('/api/volunteers/:id', async (req, res) => {
   }
 });
 
-app.listen(port, '127.0.0.1', () => console.log(`Oasis API running on http://127.0.0.1:${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`Oasis API running on port ${port}`));
 
 module.exports = app;

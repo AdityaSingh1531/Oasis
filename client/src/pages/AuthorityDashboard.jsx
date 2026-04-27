@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Building2, MapPin, AlertCircle, FileText, Activity, Share2, Filter, Trash2, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 import { useMissions } from '../contexts/MissionContext';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
@@ -42,7 +43,7 @@ const AuthorityDashboard = () => {
   // Fetch volunteers for admin management
   const fetchVolunteers = async () => {
     try {
-      const res = await fetch('/api/volunteers/nearby?lat=30.3&lng=78.0&radius=5000');
+      const res = await fetch(`${API_BASE_URL}/api/volunteers/nearby?lat=30.3&lng=78.0&radius=5000`);
       const data = await res.json();
       if (res.ok) setVolunteers(data.volunteers);
     } catch (err) { console.error("Volunteer fetch failed:", err); }
@@ -57,7 +58,7 @@ const AuthorityDashboard = () => {
   const deleteMission = async (id) => {
     if (!window.confirm("TERMINATE MISSION?")) return;
     try {
-      const res = await fetch(`/api/missions/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/missions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         alert("Mission Excised from Database.");
         window.location.reload();
@@ -78,7 +79,7 @@ const AuthorityDashboard = () => {
     }
     if (!window.confirm("EXCISE VOLUNTEER?")) return;
     try {
-      const res = await fetch(`/api/volunteers/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/volunteers/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setVolunteers(v => v.filter(vol => vol.id !== id));
         alert("Personnel Record Purged.");

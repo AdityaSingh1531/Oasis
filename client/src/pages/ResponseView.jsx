@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ShieldAlert, PhoneCall, AlertTriangle, ArrowLeft, Navigation, MessageSquare, Terminal, Eye, Phone, CheckCircle, MapPin, Truck, Clock } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 import { useMissions } from '../contexts/MissionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { GoogleMap, useJsApiLoader, Marker, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
@@ -112,7 +113,7 @@ const ResponseView = () => {
   const handleActivateSafety = async () => {
     if (!buddyInfo.name || !buddyInfo.phone) return alert("Please provide Buddy details");
     try {
-      const res = await fetch('/api/safety/activate', {
+      const res = await fetch(`${API_BASE_URL}/api/safety/activate`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -141,7 +142,7 @@ const ResponseView = () => {
   const handleCheckIn = async () => {
     if (!safetySession?.id) return;
     try {
-      const res = await fetch('/api/safety/checkin', {
+      const res = await fetch(`${API_BASE_URL}/api/safety/checkin`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -165,7 +166,7 @@ const ResponseView = () => {
     if (!otp) return;
     setIsResolving(true);
     try {
-      const response = await fetch('/api/verify', {
+      const response = await fetch(`${API_BASE_URL}/api/verify`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

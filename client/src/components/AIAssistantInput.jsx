@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Terminal, Mic, Square, Loader2 } from 'lucide-react';
+import API_BASE_URL from '../config';
 
 const AIAssistantInput = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -25,7 +26,7 @@ const AIAssistantInput = () => {
           const base64Audio = reader.result.split(',')[1];
           setIsSending(true);
           try {
-            const res = await fetch('/api/report/voice', {
+            const res = await fetch(`${API_BASE_URL}/api/report/voice`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ audio: base64Audio })
@@ -65,7 +66,7 @@ const AIAssistantInput = () => {
     if (!inputValue.trim()) return;
     setIsSending(true);
     try {
-      const res = await fetch('/api/report', {
+      const res = await fetch(`${API_BASE_URL}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_text: inputValue })

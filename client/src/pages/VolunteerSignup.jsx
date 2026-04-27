@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Shield, Truck, Clock, ArrowRight, ChevronDown, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 import { useAuth } from '../contexts/AuthContext';
 
 const VolunteerSignup = () => {
@@ -28,7 +29,7 @@ const VolunteerSignup = () => {
     else if (formData.vehicle.includes('Four')) vehicleKey = '4x4';
 
     try {
-      const response = await fetch('/api/volunteers/register', {
+      const response = await fetch(`${API_BASE_URL}/api/volunteers/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -1,4 +1,9 @@
 node_modules
 .env
 oasis.db
-*.json
+.git
+client
+.vercel
+# Keep package.json and other essential config
+# But ignore service account keys for security (they should be in Env Vars)
+*firebase-adminsdk*.json

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 const MissionContext = createContext();
 
@@ -10,7 +11,7 @@ export const MissionProvider = ({ children }) => {
   useEffect(() => {
     const fetchMissions = async () => {
       try {
-        const response = await fetch('/api/active-needs');
+        const response = await fetch(`${API_BASE_URL}/api/active-needs`);
         const data = await response.json();
         setMissions(data.needs || []);
       } catch (error) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, Award, Star, TrendingUp, Users, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
 
 const Leaderboard = () => {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ const Leaderboard = () => {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const res = await fetch('/api/leaderboard');
+        const res = await fetch(`${API_BASE_URL}/api/leaderboard`);
         const json = await res.json();
         setData(json);
       } catch (e) {

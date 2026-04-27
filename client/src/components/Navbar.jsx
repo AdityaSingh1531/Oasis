@@ -23,7 +23,6 @@ const Navbar = () => {
         >
           {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-oasis-blue" />}
         </motion.button>
-        <button className="text-[10px] font-black text-[var(--text-secondary)] hover:text-[var(--text-primary)] tracking-[0.2em] uppercase transition-colors px-4 py-2 glass-panel rounded-lg">Protocol</button>
       </div>
     </nav>
   );
