@@ -10,20 +10,47 @@ const crypto = require('crypto');
 let db = null;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.log("🛠️ Diagnostic: FIREBASE_SERVICE_ACCOUNT found. Length:", process.env.FIREBASE_SERVICE_ACCOUNT.length);
-    
-    // SANITIZATION LAYER: Remove invisible control characters that crash JSON.parse
-    let sanitizedKey = process.env.FIREBASE_SERVICE_ACCOUNT
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Remove all non-printable control characters
-      .replace(/\\n/g, "\n"); // Restore proper newlines
-    
-    // Ensure it starts and ends with braces
-    if (!sanitizedKey.startsWith("{")) sanitizedKey = "{" + sanitizedKey;
-    if (!sanitizedKey.endsWith("}")) sanitizedKey = sanitizedKey + "}";
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+    console.log("🛠️ Diagnostic: FIREBASE_SERVICE_ACCOUNT found. Length:", raw.length);
 
-    const serviceAccount = JSON.parse(sanitizedKey);
+    let serviceAccount = null;
+
+    // Strategy 1: Try parsing as-is (works if Render keeps JSON intact)
+    try {
+      serviceAccount = JSON.parse(raw);
+      console.log("✅ Strategy 1 (raw parse) succeeded.");
+    } catch (e1) {
+      console.log("⚠️ Strategy 1 failed:", e1.message);
+    }
+
+    // Strategy 2: Replace escaped \\n with real newlines (common Render issue)
+    if (!serviceAccount) {
+      try {
+        serviceAccount = JSON.parse(raw.replace(/\\n/g, '\n'));
+        console.log("✅ Strategy 2 (\\\\n → newline) succeeded.");
+      } catch (e2) {
+        console.log("⚠️ Strategy 2 failed:", e2.message);
+      }
+    }
+
+    // Strategy 3: Remove non-printable chars EXCEPT \n and \r, then fix newlines
+    if (!serviceAccount) {
+      try {
+        const cleaned = raw
+          .replace(/[\u0000-\u0009\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
+          .replace(/\\n/g, '\n');
+        serviceAccount = JSON.parse(cleaned);
+        console.log("✅ Strategy 3 (sanitize + newline fix) succeeded.");
+      } catch (e3) {
+        console.log("⚠️ Strategy 3 failed:", e3.message);
+      }
+    }
+
+    if (!serviceAccount) {
+      throw new Error("All JSON parse strategies failed for FIREBASE_SERVICE_ACCOUNT. Check Render env var.");
+    }
+
     console.log("🛠️ Diagnostic: Parsed JSON keys:", Object.keys(serviceAccount));
-    
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
